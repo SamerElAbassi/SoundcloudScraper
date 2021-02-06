@@ -4,5 +4,6 @@ if __name__=="__main__":
     USERNAME="jjjjsamer"
     tab_manager=TabManager(USERNAME)
     tab_manager.startup()
+    tab_manager.open_tabs()
     time.sleep(5)
     tab_manager.driver.quit()
