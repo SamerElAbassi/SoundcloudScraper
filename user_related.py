@@ -32,9 +32,12 @@ class User:
         return self.tracks
 
 
-class track:
+class Track:
     def __init__(self, url, date,track_name="",artist=""):
         self.url = url
-        self.date = date
-        self.track_name=track_name
         self.artist=artist
+        self.date = date
+        self.track_name=track_name.strip('\n')
+
+    def __str__(self) -> str:
+        return "Artist="+self.artist+"\nUrl="+self.url+"\nDate="+self.date+"\nTrack="+self.track_name+'\n'

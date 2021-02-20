@@ -1,5 +1,5 @@
 # %%
-from user_related import User
+from user_related import User, Track
 from selenium.webdriver import Chrome
 import time
 import os
@@ -8,6 +8,7 @@ import pandas as pd
 from bs4 import BeautifulSoup
 import pickle
 from helper import *
+from operator import itemgetter
 
 
 class NewTab:
@@ -21,11 +22,14 @@ class NewTab:
         self.tracks = []
         self.followers = []
         self.user = user
+        time.sleep(3)  # Wait untill its done
+        self.get_tracks()
 
     def open_tab(self, handle=-1):
         self.driver.execute_script("window.open('');")
         self.driver.switch_to.window(self.driver.window_handles[handle])
         self.driver.get(self.url)
+        print(f'Sucessfully opened {self.url}')
 
     def get_username(self):
         return self.username
@@ -35,20 +39,22 @@ class NewTab:
         self.driver.execute_script("window.scrollTo(0, document.body.scrollHeight);")
         time.sleep(self.scroll_pause_time)
         new_height = self.driver.execute_script("return document.body.scrollHeight")
-        return 0 if new_height == last_height else 1
+        return not new_height == last_height
 
     def get_tracks(self, limit=20):
         counter = 0
-        tracks = []
         while self.scroll() and counter < limit:
             counter += 1
-        self.continut = get_track_info(self)
-        '''
-        for track in tracks:
-            track_url = track.get_attribute
-        # self.tracks= selecteaza piesa extrage data compara cu diff
-        return self.driver.find_elements_by_class_name("soundList__item")
-        '''
+        self.tracks = get_track_objects(self)
+
+    def get_tracks_before_date(self, delta_limit=30):
+        return [track for track in self.tracks if delta_time(track.date) < delta_limit]
+
+    def __str__(self):
+        string = "*" * 20 + "\n" + f"username:{self.username}"
+        for track in self.tracks:
+            string += "\n" + str(track)
+        return string
 
 
 class InitTab(NewTab):
@@ -62,17 +68,22 @@ class InitTab(NewTab):
         counter = 0
 
         while self.scroll() and counter < limit:
-            print("Still scrolling")
             counter += 1
-
         followers.extend(self.driver.find_elements_by_class_name("userBadgeListItem__image"))
         self.followers = [elem.get_attribute('href') for elem in followers]
         store_data(self.followers, "followers.txt")
 
         return self.followers
 
+    def __str__(self):
+        string = "" * 20 + "\n" + f"USERNAME:{self.username}"
+        for follower in self.followers:
+            string += "\n" + str(follower)
+        return string
 
 class TabManager:
+    time_diff = 30
+
     def __init__(self, init_username, tabs=None, init_tab=None):
         self.driver = Chrome()
         self.tabs = tabs
@@ -91,12 +102,23 @@ class TabManager:
 
         self.user.set_follow_list(followers)
 
-    def open_tabs(self):
+    def open_tabs(self, indexes):
         tabs = []
-        for index, followed_url in enumerate(self.user.get_follow_list()):
+        counter = 0
+        for followed_url in list(map(self.user.get_follow_list().__getitem__, indexes)):
             username = get_user_from_url(followed_url)
-            new_tab = NewTab(self.driver, username, open_tab=1, handle=index)
+            new_tab = NewTab(self.driver, username, open_tab=1)
             tabs.append(new_tab)
+
+            tracks = new_tab.get_tracks_before_date()
+            if tracks:
+                print("--------------New artist!--------------!\n" + \
+                      f'--------------{new_tab.username}!--------------!')
+                for track in tracks:
+                    print(str(track))
+            if counter > 20:
+                break
+            counter += 1
 
     def get_followers(self):
         return self.user.get_follow_list()
